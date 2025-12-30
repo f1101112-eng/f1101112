@@ -25,13 +25,17 @@ class SnakeGame:
         )
         self.canvas.pack()
 
+        self.root.bind("<Key>", self.key_handler)
+        self.reset_game()
+
+    # ========= 遊戲初始化 / 重開 =========
+    def reset_game(self):
         self.score = 0
         self.direction = "Right"
         self.snake = [(5, 5), (4, 5), (3, 5)]
         self.food = self.create_food()
-        self.running = True   # ⭐ 新增
-
-        self.root.bind("<Key>", self.change_direction)
+        self.running = True
+        self.paused = False
         self.update()
 
     def create_food(self):
@@ -41,6 +45,7 @@ class SnakeGame:
             if pos not in self.snake:
                 return pos
 
+    # ========= 繪圖 =========
     def draw_round_cell(self, x, y, color):
         px = x * CELL_SIZE
         py = y * CELL_SIZE
@@ -72,11 +77,33 @@ class SnakeGame:
             anchor="nw"
         )
 
-    def change_direction(self, event):
-        if not self.running:
+        # 暫停提示
+        if self.paused:
+            self.canvas.create_text(
+                WIDTH * CELL_SIZE // 2,
+                HEIGHT * CELL_SIZE // 2,
+                text="PAUSED",
+                fill="white",
+                font=("Consolas", 28)
+            )
+
+    # ========= 控制 =========
+    def key_handler(self, event):
+        key = event.keysym
+
+        # 暫停 / 繼續
+        if key == "space" and self.running:
+            self.paused = not self.paused
             return
 
-        key = event.keysym
+        # 重新開始
+        if key.lower() == "r":
+            self.reset_game()
+            return
+
+        if not self.running or self.paused:
+            return
+
         opposites = {
             "Up": "Down", "Down": "Up",
             "Left": "Right", "Right": "Left"
@@ -84,6 +111,7 @@ class SnakeGame:
         if key in opposites and opposites[key] != self.direction:
             self.direction = key
 
+    # ========= 遊戲邏輯 =========
     def move_snake(self):
         x, y = self.snake[0]
 
@@ -98,7 +126,7 @@ class SnakeGame:
 
         new_head = (x, y)
 
-        # ⭐ 撞牆 or 撞到自己
+        # 撞牆 or 撞到自己
         if (
             x < 0 or x >= WIDTH or
             y < 0 or y >= HEIGHT or
@@ -116,22 +144,26 @@ class SnakeGame:
             self.snake.pop()
 
     def game_over(self):
-        self.running = False   # ⭐ 停止遊戲
+        self.running = False
         self.canvas.create_text(
             WIDTH * CELL_SIZE // 2,
             HEIGHT * CELL_SIZE // 2,
-            text="GAME OVER",
+            text="GAME OVER\nPress R to Restart",
             fill="white",
-            font=("Consolas", 32)
+            font=("Consolas", 24),
+            justify="center"
         )
 
     def update(self):
-        if self.running:
+        if self.running and not self.paused:
             self.move_snake()
             self.draw()
-            self.root.after(SPEED, self.update)
+        elif self.running:
+            self.draw()
 
-# ===== 主程式 =====
+        self.root.after(SPEED, self.update)
+
+# ========= 主程式 =========
 root = tk.Tk()
 game = SnakeGame(root)
 root.mainloop()
